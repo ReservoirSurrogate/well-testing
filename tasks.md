@@ -69,9 +69,18 @@ spacing ~ pi/(r_eD - 1) for large n; lambda_1^2 ~ 2/(r_eD^2 (ln r_eD - 3/4)).
        `phase_1/fig_dataset.py` -> `tex/fig_dataset.pdf`, Data section of `tex/phase1.tex` updated.
        Finding: K = 32 k_D = 1 modes miss near-well structure of heterogeneous states (projection error median 4.5%,
        p90 11% at t_D = 5e4; 94% of residual at r < 10) -> near-well detail must go through the pointwise path.
-4. [ ] **HNO model** - lift -> L x [annular Hankel spectral conv + pointwise W + GELU] -> project;
+4. [x] **HNO model** - lift -> L x [annular Hankel spectral conv + pointwise W + GELU] -> project;
        real-valued spectral weights; hard constraint u(1) = 0.
-5. [ ] **Training & evaluation** - one-step relative L2; rollout error over a limited window (~100-500 steps);
+       Basis study (200 train trajectories, ln r measure): K = 32 Hankel misses 3e-2 of the states (median) and
+       128 Hankel modes 1e-2, but K = 32 log-sine modes sin((n - 1/2) pi s), s = ln r / ln r_eD, only 1e-4
+       (also better in the r-weighted norm: 3e-6 vs 9e-4). The first step's change u(1000) - 1 is not
+       representable in any basis with phi(1) = 0 -> predict u_{n+1} directly.
+       Done: `phase_1/model.py` - one architecture, swappable spectral basis (T, B):
+       A `hankel`, B `hankel_local` (+ kernel-5 conv), C `logsine`, D `dual` (Hankel + log-sine), E `fno` (FFT, padded).
+       Inputs [u, log k, s]; output u_{n+1} = s * v (hard BC); 4 layers, width 32, K = 32 (140k-270k params).
+       `phase_1/tests/test_model.py` (15 tests, incl. exact k_D = 1 step via one Hankel layer).
+       CPU cost: 0.3-0.6 s per training step of 64 pairs -> 35-65 min per full pass over 400k pairs.
+5. [ ] **Training & evaluation** - loss: relative L2 in the ln r measure (grid-uniform); also report r-weighted L2; one-step relative L2; rollout error over a limited window (~100-500 steps);
        well rate q_D ~ r du/dr at r_D = 1; baseline FNO-1D on the same data.
 
 ## Layout
