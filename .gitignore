@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# LaTeX build artifacts
+tex/*.aux
+tex/*.log
+tex/*.out
