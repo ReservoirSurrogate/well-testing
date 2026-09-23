@@ -6,7 +6,10 @@ All variants share one architecture:
     -> lift (pointwise, width C)
     -> L x [ sum of spectral convolutions + pointwise W (+ optional local conv) ; GELU except after the last ]
     -> project (pointwise C -> 128 -> 1) = v
-    -> u_{n+1} = s * v                       (hard BC: u(1) = 0)
+    -> u_{n+1} = s * v                       (direct; hard BC u(1) = 0)
+       u_{n+1} = u_n + v, first node set to 0 (residual=True; v = 0 is the "copy the input" baseline)
+
+The residual form does not multiply by s: the first step's change u(1000) - 1 is -1 right next to the well.
 
 A spectral convolution transforms each channel to K modes (u_hat = T u), mixes channels per mode with
 learned real weights R_k (C x C), and maps back (u = B u_hat). Only the basis (T, B) differs:
@@ -103,9 +106,13 @@ class Layer(nn.Module):
 class NeuralOperator(nn.Module):
     """Input (batch, 2, N) = [u_n, log k]; output (batch, N) = u_{n+1} with u(1) = 0 exactly."""
 
-    def __init__(self, make_spectral, s, width=32, n_layers=4, local_kernel=0, proj_width=128):
+    def __init__(self, make_spectral, s, width=32, n_layers=4, local_kernel=0, proj_width=128, residual=False):
         super().__init__()
+        self.residual = residual
         self.register_buffer("s", torch.as_tensor(s, dtype=torch.get_default_dtype()))
+        interior = torch.ones(len(s))
+        interior[0] = 0.0
+        self.register_buffer("interior", interior)
         self.lift = nn.Conv1d(3, width, 1)
         self.layers = nn.ModuleList(
             Layer(make_spectral(), width, local_kernel, act=i < n_layers - 1) for i in range(n_layers))
@@ -116,13 +123,17 @@ class NeuralOperator(nn.Module):
         h = self.lift(torch.cat([x, s], dim=1))
         for layer in self.layers:
             h = layer(h)
-        return self.s * self.proj(h)[:, 0]
+        v = self.proj(h)[:, 0]
+        if self.residual:
+            return self.interior * (x[:, 0] + v)
+        return self.s * v
 
 
 VARIANTS = ("hankel", "hankel_local", "logsine", "dual", "fno")
 
 
-def build_model(variant, n_modes=32, width=32, n_layers=4, n_points=N_POINTS, r_e=R_E, fft_pad=None):
+def build_model(variant, n_modes=32, width=32, n_layers=4, n_points=N_POINTS, r_e=R_E, fft_pad=None,
+                residual=False):
     """Factory for variants A-E (see module docstring)."""
     r, _ = make_grid(n_points, r_e)
     s = log_coordinate(r, r_e)
@@ -143,7 +154,7 @@ def build_model(variant, n_modes=32, width=32, n_layers=4, n_points=N_POINTS, r_
         make = lambda: [FourierConv(n_modes, width, pad)]
     else:
         raise ValueError(f"unknown variant {variant!r}; choose from {VARIANTS}")
-    return NeuralOperator(make, s, width, n_layers, local)
+    return NeuralOperator(make, s, width, n_layers, local, residual=residual)
 
 
 def n_params(model):

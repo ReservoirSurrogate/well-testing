@@ -9,3 +9,6 @@ tex/*.out
 
 # Generated datasets
 phase_1/data/
+
+# Training runs (checkpoints, logs)
+phase_1/runs/

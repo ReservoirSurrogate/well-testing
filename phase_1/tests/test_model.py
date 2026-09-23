@@ -70,3 +70,16 @@ def test_backward_reaches_all_parameters(model):
 def test_unknown_variant():
     with pytest.raises(ValueError):
         build_model("wavelet")
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_residual_zero_update_copies_input(variant):
+    torch.manual_seed(0)
+    m = build_model(variant, n_modes=K, width=16, n_layers=2, residual=True)
+    with torch.no_grad():
+        m.proj[-1].weight.zero_()
+        m.proj[-1].bias.zero_()
+    x = torch.rand(2, 2, N)
+    y = m(x)
+    assert torch.all(y[:, 0] == 0.0)
+    assert torch.equal(y[:, 1:], x[:, 0, 1:])

@@ -82,6 +82,9 @@ spacing ~ pi/(r_eD - 1) for large n; lambda_1^2 ~ 2/(r_eD^2 (ln r_eD - 3/4)).
        CPU cost: 0.3-0.6 s per training step of 64 pairs -> 35-65 min per full pass over 400k pairs.
 5. [ ] **Training & evaluation** - loss: relative L2 in the ln r measure (grid-uniform); also report r-weighted L2; one-step relative L2; rollout error over a limited window (~100-500 steps);
        well rate q_D ~ r du/dr at r_D = 1; baseline FNO-1D on the same data.
+       In progress: `phase_1/train.py`, `phase_1/evaluate.py`. Stage 1 (direct) and 1b (residual + q_D loss)
+       trained: one-step errors reach the copy-input level, but rollouts are unstable (errors amplify
+       ~1.3-1.5x per step). Pending decision: switch to a direct model (log k, t) -> u(r, t). See `STATUS.md`.
 
 ## Layout
 - `phase_1/` - all phase-1 Python (code, figure scripts, `tests/`); run with `/home/daniel_88/py314/bin/python`.
