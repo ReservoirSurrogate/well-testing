@@ -54,8 +54,11 @@ spacing ~ pi/(r_eD - 1) for large n; lambda_1^2 ~ 2/(r_eD^2 (ln r_eD - 3/4)).
        forward (quadrature, weight r dr) and inverse transform matrices; test orthogonality and round-trip error.
        Done: `phase_1/basis.py`, `phase_1/tests/test_basis.py` (25 tests), `phase_1/grid_study.py`.
        Least-squares T chosen over quadrature (T B - I: 2e-15 vs 4e-4; coeff. error of u=1: 2e-7 vs 4e-4 at N=1024).
-2. [ ] **Reference solver** - implicit finite-volume solver on log grid with heterogeneous k;
+2. [x] **Reference solver** - implicit finite-volume solver on log grid with heterogeneous k;
        validate for k_D = 1 against the analytic eigen-series.
+       Done: `phase_1/solver.py` (vertex-centered FV, log-exact face fluxes, harmonic-mean k, variable-step BDF2),
+       `phase_1/tests/test_solver.py` (11 tests). k_D = 1 at N = 1024: u rel. L2 ~4e-7 and q_D ~4e-7 for t >= 1e4
+       (second order in space); early times (t <= 100) limited by time step (q_D err 1.4e-3 at t = 1 with default grid).
 3. [ ] **Dataset** - random log k_D(r) (GRF + skin-zone steps); generate trajectories;
        store (u_n, log k) -> u_{n+1} pairs.
 4. [ ] **HNO model** - lift -> L x [annular Hankel spectral conv + pointwise W + GELU] -> project;
