@@ -28,11 +28,11 @@ Variables: r_D = r/r_w, k_D(r) = k(r)/k_ref, u = (p - p_wf)/(p_i - p_wf), t_D de
 | Geometry | r_eD = 1000 (fixed) |
 | Varying input | k_D(r) only: log k_D ~ GRF in ln r (sigma ~ 0.5-1) + optional near-well skin-zone steps |
 | Output | u at a single time t + dt |
-| Time step | Fixed dt_D = 100 (tunable); later: dt as an input channel |
+| Time step | Fixed dt_D = 1000, 500 steps (t_D up to 5e5: infinite-acting -> boundary arrival -> early decline); later: dt as an input channel |
 | Spectral modes | K = 32 (tunable) |
 | Grid | Log-spaced in r_D, N = 1024 (revisit after solver) |
 | Forward transform | Least squares T = (B^T W B)^-1 B^T W (T B = I exactly); quadrature kept as an option |
-| Initial state | Start trajectories at t_D = t0 > 0 (from solver) to avoid the t=0 discontinuity |
+| Initial state | Start at t_D = 0 from u = 1 (surrogate runs without the solver). With dt_D = 1000 and K = 32 the exact first step is representable to 3e-7 (vs 1.5e-2 at dt_D = 100) |
 | Stack | Plain PyTorch + SciPy |
 
 ## Annular Hankel basis
@@ -61,6 +61,10 @@ spacing ~ pi/(r_eD - 1) for large n; lambda_1^2 ~ 2/(r_eD^2 (ln r_eD - 3/4)).
        (second order in space); early times (t <= 100) limited by time step (q_D err 1.4e-3 at t = 1 with default grid).
 3. [ ] **Dataset** - random log k_D(r) (GRF + skin-zone steps); generate trajectories;
        store (u_n, log k) -> u_{n+1} pairs.
+       Plan: `phase_1/dataset.py`. log k = mean N(0, 0.3^2) + SE-covariance GRF in ln r (sigma ~ U(0.5, 1),
+       l ~ U(0.3, 1.5)) + skin offset (p = 0.5, r_s log-U[2, 20], ln(k_s/k) ~ U(ln 0.1, ln 5)), clipped to [-3, 3].
+       800 / 100 / 100 trajectories of 501 states (t_D = 0, 1000, ..., 5e5) on the N = 1024 grid, float32 .npz
+       per split in `phase_1/data/` (git-ignored); pairs formed at training time. Solver time grid h_max = 20.
 4. [ ] **HNO model** - lift -> L x [annular Hankel spectral conv + pointwise W + GELU] -> project;
        real-valued spectral weights; hard constraint u(1) = 0.
 5. [ ] **Training & evaluation** - one-step relative L2; rollout error over a limited window (~100-500 steps);
@@ -72,4 +76,4 @@ spacing ~ pi/(r_eD - 1) for large n; lambda_1^2 ~ 2/(r_eD^2 (ln r_eD - 3/4)).
 
 ## Open topics
 - Network architecture details: number of layers, width, hard-BC enforcement method.
-- Rollout stability over long horizons; move to dt-as-input (log-spaced times) to reach boundary-dominated flow (t_D ~ 1e6).
+- Rollout stability over long horizons; move to dt-as-input (log-spaced times) to resolve early times (t_D < 1000) and reach late boundary-dominated flow (t_D ~ 1e6+).

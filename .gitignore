@@ -6,3 +6,6 @@ __pycache__/
 tex/*.aux
 tex/*.log
 tex/*.out
+
+# Generated datasets
+phase_1/data/
