@@ -392,4 +392,85 @@ Stack & PyTorch + SciPy \\
 \end{tabular}
 \end{center}
 
+\appendix
+\section{Derivation of the homogeneous series coefficients}
+\label{app:coef}
+
+With $k_D\equiv1$ and $u(r,0)=u_0(r)$, the solution is $u(r,t)=\sum_m A_m\varphi_m(r)\,e^{-\lambda_m^2 t}$. Setting
+$t=0$, taking the weighted inner product with $\varphi_m$, and using orthogonality gives
+\begin{equation}
+  A_m = \hat u_m(0) = \frac{1}{N_m}\int_1^{\reD} r\,u_0\,\varphi_m\,\dd r,
+  \qquad N_m = \int_1^{\reD} r\,\varphi_m^2\,\dd r .
+\end{equation}
+Below, $u_0=1$, and $\varphi=\varphi_m$, $\lambda=\lambda_m$ satisfy
+\begin{equation}
+  (r\varphi')' + \lambda^2 r\varphi = 0,\qquad \varphi(1)=0,\qquad \varphi'(\reD)=0 .
+  \label{eq:app-sl}
+\end{equation}
+Steps~1--3 use only \eqref{eq:app-sl}. The Bessel form of $\varphi_m$ enters only in Steps~4--5.
+
+\paragraph{Step 1: numerator.}
+By \eqref{eq:app-sl}, $r\varphi = -\lambda^{-2}(r\varphi')'$ is an exact derivative, so
+\begin{equation}
+  \int_1^{\reD} r\,\varphi\,\dd r = -\frac{1}{\lambda^2}\Big[r\varphi'\Big]_1^{\reD}
+  = -\frac{1}{\lambda^2}\Big(\reD\,\varphi'(\reD) - \varphi'(1)\Big) = \frac{\varphi'(1)}{\lambda^2},
+\end{equation}
+since $\varphi'(\reD)=0$.
+
+\paragraph{Step 2: normalization.}
+Multiplying \eqref{eq:app-sl} by $r\varphi'$ gives
+\begin{equation}
+  \frac{\dd}{\dd r}\Big[\tfrac12 (r\varphi')^2\Big] + \lambda^2 r^2\,\frac{\dd}{\dd r}\Big[\tfrac12\varphi^2\Big] = 0 .
+\end{equation}
+Integrating over $[1,\reD]$, with the second term integrated by parts
+($\int r^2(\varphi^2/2)'\,\dd r = [r^2\varphi^2/2] - \int r\varphi^2\,\dd r$), yields
+\begin{equation}
+  \int_1^{\reD} r\,\varphi^2\,\dd r = \frac{1}{2\lambda^2}\Big[(r\varphi')^2 + \lambda^2 r^2\varphi^2\Big]_1^{\reD}.
+\end{equation}
+At $r=\reD$ only $\lambda^2\reD^2\varphi(\reD)^2$ survives ($\varphi'=0$). At $r=1$ only $\varphi'(1)^2$ survives
+($\varphi=0$). Hence
+\begin{equation}
+  N_m = \frac12\left[\reD^2\,\varphi_m(\reD)^2 - \frac{\varphi_m'(1)^2}{\lambda_m^2}\right].
+\end{equation}
+
+\paragraph{Step 3: general coefficient.}
+Combining Steps~1 and~2,
+\begin{equation}
+  A_m = \frac{\varphi_m'(1)}{\lambda_m^2 N_m}
+      = \frac{2\,\varphi_m'(1)}{\lambda_m^2\reD^2\,\varphi_m(\reD)^2 - \varphi_m'(1)^2}.
+\end{equation}
+This holds for any scaling of $\varphi_m$. Only the boundary values $\varphi_m(\reD)$ and $\varphi_m'(1)$ appear,
+so the interior shape drops out.
+
+\paragraph{Step 4: well-face slope.}
+For $\varphi_m(r)=J_0(\lambda_m r)Y_0(\lambda_m)-Y_0(\lambda_m r)J_0(\lambda_m)$, using $J_0'=-J_1$, $Y_0'=-Y_1$ and the
+Wronskian $J_1(x)Y_0(x)-J_0(x)Y_1(x)=2/(\pi x)$,
+\begin{equation}
+  \varphi_m'(1) = -\lambda_m\Big[J_1(\lambda_m)Y_0(\lambda_m)-Y_1(\lambda_m)J_0(\lambda_m)\Big] = -\frac{2}{\pi},
+\end{equation}
+which is the same for every mode. Substituting,
+\begin{equation}
+  N_m = \frac{\reD^2}{2}\,\varphi_m(\reD)^2 - \frac{2}{\pi^2\lambda_m^2},\qquad
+  A_m = -\frac{2}{\pi\lambda_m^2 N_m} = -\frac{4\pi}{\pi^2\lambda_m^2\reD^2\,\varphi_m(\reD)^2 - 4},
+\end{equation}
+in agreement with Section~3.1.
+
+\paragraph{Step 5: closed form.}
+Let $x_m=\lambda_m\reD$. The eigenvalue condition \eqref{eq:eig} gives $Y_0(\lambda_m)=J_0(\lambda_m)Y_1(x_m)/J_1(x_m)$, and
+the Wronskian at $x_m$ then gives
+\begin{equation}
+  \varphi_m(\reD) = \frac{J_0(\lambda_m)}{J_1(x_m)}\Big[J_0(x_m)Y_1(x_m)-Y_0(x_m)J_1(x_m)\Big]
+  = -\frac{2\,J_0(\lambda_m)}{\pi x_m J_1(x_m)} .
+\end{equation}
+Substituting into Step~4,
+\begin{equation}
+  \boxed{\;
+  N_m = \frac{2}{\pi^2\lambda_m^2}\left(\frac{J_0(\lambda_m)^2}{J_1(\lambda_m\reD)^2}-1\right),\qquad
+  A_m = \frac{\pi\,J_1(\lambda_m\reD)^2}{J_1(\lambda_m\reD)^2 - J_0(\lambda_m)^2}
+  \;}
+\end{equation}
+Since $N_m>0$, $|J_0(\lambda_m)|>|J_1(\lambda_m\reD)|$, so $A_m<0$, consistent with the sign of $\varphi_m$ near the well.
+For $\reD=1000$, $A_1=-0.25310$, $A_2=-0.036538$, $A_3=-0.024609$, which agree with direct quadrature to seven
+significant digits.
+
 \end{document}

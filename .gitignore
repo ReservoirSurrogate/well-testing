@@ -12,3 +12,6 @@ phase_1/data/
 
 # Training runs (checkpoints, logs)
 phase_1/runs/
+
+# Direct-operator runs
+phase_1/direct/runs/
