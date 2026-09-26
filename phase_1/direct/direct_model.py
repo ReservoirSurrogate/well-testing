@@ -83,10 +83,14 @@ class DirectOperator(nn.Module):
 
 
 def build_direct(variant, n_modes=32, width=32, n_layers=4, n_points=N_POINTS, r_e=R_E, fft_pad=None,
-                 fftlog_pad=256, fftlog_q=0.4):
-    """Factory for the direct operator; spectral bases as in phase_1/model.build_model."""
+                 fftlog_pad=256, fftlog_q=0.4, s_ref_re=None, fftlog_k_range=None):
+    """Factory for the direct operator; spectral bases as in phase_1/model.build_model.
+
+    For transfer to another r_eD (see transfer_evaluate.py): s_ref_re keeps s = ln r / ln s_ref_re as a fixed
+    physical coordinate (default: ln r / ln r_e), and fftlog_k_range pins the FFTLog control points to physical k.
+    """
     r, _ = make_grid(n_points, r_e)
-    s = log_coordinate(r, r_e)
+    s = log_coordinate(r, r_e if s_ref_re is None else s_ref_re)
     local = 0
     if variant in ("hankel", "hankel_local"):
         T, B = hankel_pair(n_modes, n_points, r_e)
@@ -104,7 +108,8 @@ def build_direct(variant, n_modes=32, width=32, n_layers=4, n_points=N_POINTS, r
         make = lambda: [FourierConv(n_modes, width, pad)]
     elif variant in ("fftlog", "fftlog_decay"):
         decay = variant == "fftlog_decay"
-        make = lambda: [FFTLogConv(r, width, n_modes, pad=fftlog_pad, q=fftlog_q, decay=decay)]
+        make = lambda: [FFTLogConv(r, width, n_modes, pad=fftlog_pad, q=fftlog_q, decay=decay,
+                                   k_range=fftlog_k_range)]
     else:
         raise ValueError(f"unknown variant {variant!r}; choose from {VARIANTS}")
     return DirectOperator(make, s, width, n_layers, local)

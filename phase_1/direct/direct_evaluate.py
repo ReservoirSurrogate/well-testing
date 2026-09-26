@@ -23,6 +23,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 from basis import eigenvalues, exact_solution, make_grid  # noqa: E402
+from dataset import N_POINTS as TRAIN_POINTS  # noqa: E402
+from dataset import R_E as TRAIN_RE  # noqa: E402
 from direct_model import build_direct  # noqa: E402
 from direct_train import DATA  # noqa: E402
 from evaluate import norms, well_rate  # noqa: E402
@@ -33,11 +35,31 @@ SEMIGROUP_SPLITS = ((1, 1), (10, 10), (50, 450), (250, 250))   # (m_1, m_2) in s
 
 
 def load_model(run_dir, n_points, r_e):
+    """Trained model on the grid (n_points, r_e).
+
+    On a grid other than the training grid (transfer to another r_eD, same ln-r spacing), the model is rebuilt
+    with the training grid's physical settings - s = ln r / ln TRAIN_RE, the fno pad length, the FFTLog control
+    points at the training grid's physical k - and only the learned parameters are loaded (grid-dependent
+    buffers are recomputed for the new grid).
+    """
     ckpt = torch.load(Path(run_dir) / "best.pt")
     c = ckpt["config"]
-    model = build_direct(c["variant"], n_modes=c["n_modes"], width=c["width"], n_layers=c["n_layers"],
-                         n_points=n_points, r_e=r_e)
-    model.load_state_dict(ckpt["state_dict"])
+    kw = dict(n_modes=c["n_modes"], width=c["width"], n_layers=c["n_layers"])
+    if n_points == TRAIN_POINTS and np.isclose(r_e, TRAIN_RE):
+        model = build_direct(c["variant"], n_points=n_points, r_e=r_e, **kw)
+        model.load_state_dict(ckpt["state_dict"])
+        return model.eval(), ckpt
+    k_range = None
+    if c["variant"].startswith("fftlog"):
+        ref = build_direct(c["variant"], n_points=TRAIN_POINTS, r_e=TRAIN_RE, **kw)
+        k_range = ref.layers[0].spectral[0].k_range
+    model = build_direct(c["variant"], n_points=n_points, r_e=r_e, fft_pad=TRAIN_POINTS // 4, s_ref_re=TRAIN_RE,
+                         fftlog_k_range=k_range, **kw)
+    names = dict(model.named_parameters())
+    params = {k: v for k, v in ckpt["state_dict"].items() if k in names}
+    if set(params) != set(names):
+        raise RuntimeError(f"parameters missing from checkpoint: {sorted(set(names) - set(params))}")
+    model.load_state_dict(params, strict=False)
     return model.eval(), ckpt
 
 
@@ -49,7 +71,7 @@ def predict(model, u0, logk, dt, chunk=200):
     return torch.cat([model(x[i:i + chunk], dt[i:i + chunk]) for i in range(0, len(x), chunk)]).double().numpy()
 
 
-def evaluate(run_dir, data_dir=DATA):
+def evaluate(run_dir, data_dir=DATA, out_name="eval.json"):
     u, logk, r, r_e = open_split(data_dir, "test")
     with np.load(Path(data_dir) / "test.npz") as f:
         has_skin, t = f["has_skin"], f["t"].astype(float)
@@ -115,7 +137,8 @@ def evaluate(run_dir, data_dir=DATA):
         "homogeneous": {"per_time": homog.tolist(), "final": float(homog[-1]), "max": float(homog.max())},
         "semigroup": semigroup,
     }
-    (Path(run_dir) / "eval.json").write_text(json.dumps(res))
+    res["r_e"] = float(r_e)
+    (Path(run_dir) / out_name).write_text(json.dumps(res))
     return res
 
 

@@ -1,12 +1,13 @@
-"""Direct operator (stage 2, fno): predictions vs truth at t_D = 1000 on the test split.
+"""Direct operator (default: stage-2 fno): predictions vs truth at t_D = 1000 on the test split.
 
 (a) u(r) for the test trajectories at the median, 90th-percentile and worst u error: truth solid, prediction dashed
 (b) ln k_D(r) of the same trajectories
 (c) pointwise error u_pred - u_true of the same trajectories
 (d) predicted vs true well rate q_D for all test trajectories
 
-Run with:  OMP_NUM_THREADS=1 /home/daniel_88/py314/bin/python phase_1/direct/fig_direct_t1000.py [--png preview.png]
-Writes:    tex/fig_direct_t1000.pdf
+Run with:  OMP_NUM_THREADS=1 /home/daniel_88/py314/bin/python phase_1/direct/fig_direct_t1000.py
+           [--run runs/stage4/fftlog] [--out tex/fig_x.pdf] [--png preview.png]
+Writes:    tex/fig_direct_t1000.pdf (or --out)
 """
 import argparse
 import sys
@@ -37,6 +38,8 @@ MUTED = "#52514e"
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--run", type=Path, default=RUN, help="run directory with best.pt")
+    ap.add_argument("--out", type=Path, default=OUT, help="PDF output path")
     ap.add_argument("--png", type=Path, default=None, help="also write a PNG preview here")
     args = ap.parse_args()
     torch.set_num_threads(1)
@@ -45,7 +48,8 @@ def main():
     with np.load(DATA / "test.npz") as f:
         t = f["t"]
     logk = logk.astype(float)
-    model, _ = load_model(RUN, len(r), r_e)
+    model, ckpt = load_model(args.run, len(r), r_e)
+    variant = ckpt["config"]["variant"]
     true = np.asarray(u[:, J], dtype=float)
     pred = predict(model, np.asarray(u[:, 0], dtype=float), logk, t[J])
 
@@ -68,8 +72,8 @@ def main():
 
     a.set_xlabel(r"$r_D$")
     a.set_ylabel(r"$u$")
-    a.set_title(r"(a) pressure at $t_D=1000$: truth (solid) vs fno (dashed)")
-    handles = a.get_legend_handles_labels()[0] + [Line2D([], [], color="black", lw=1, ls="--", label="fno")]
+    a.set_title(rf"(a) pressure at $t_D=1000$: truth (solid) vs {variant} (dashed)")
+    handles = a.get_legend_handles_labels()[0] + [Line2D([], [], color="black", lw=1, ls="--", label=variant)]
     a.legend(handles=handles, fontsize=8, loc="lower right", frameon=False)
 
     b.set_xlabel(r"$r_D$")
@@ -98,8 +102,8 @@ def main():
         x.grid(True, which="major", color="#e5e5e2", lw=0.6)
         x.set_axisbelow(True)
     fig.tight_layout()
-    fig.savefig(OUT)
-    print(f"wrote {OUT}")
+    fig.savefig(args.out)
+    print(f"wrote {args.out}")
     if args.png:
         fig.savefig(args.png, dpi=110)
 

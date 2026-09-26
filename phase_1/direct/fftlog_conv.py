@@ -31,7 +31,10 @@ D_INIT = (1e-4, 20.0)      # log-uniform initial range of the per-channel diffus
 class FFTLogConv(nn.Module):
     """x (batch, C, N) [, dt (batch,)] -> (batch, C, N); r must be geometric (constant ln-spacing)."""
 
-    def __init__(self, r, width, n_modes=32, pad=256, mu=0.0, q=0.4, decay=False):
+    def __init__(self, r, width, n_modes=32, pad=256, mu=0.0, q=0.4, decay=False, k_range=None):
+        """k_range = (k_lo, k_hi): physical wavenumbers of the first and last control point of R(k).
+        Default: this grid's own k range. Pass the training grid's range to reuse trained weights on another
+        grid (e.g. another r_eD): R(k) then stays the same function of physical k, held constant outside."""
         super().__init__()
         r = np.asarray(r, dtype=float)
         dlog = np.log(r[1] / r[0])
@@ -48,8 +51,10 @@ class FFTLogConv(nn.Module):
         ramp = np.sin(0.5 * np.pi * (np.arange(pad) + 0.5) / pad) ** 2          # 0 -> 1 across the pad
         taper[:pad], taper[n_tot - pad:] = ramp, ramp[::-1]
 
-        # linear interpolation in ln k (= in index, the k grid is geometric) from n_modes control points
-        pos = np.linspace(0, n_modes - 1, n_tot)
+        # linear interpolation in ln k from n_modes control points, log-spaced over k_range
+        k_lo, k_hi = (k[0], k[-1]) if k_range is None else k_range
+        self.k_range = (float(k_lo), float(k_hi))
+        pos = np.clip((np.log(k) - np.log(k_lo)) / (np.log(k_hi) - np.log(k_lo)), 0.0, 1.0) * (n_modes - 1)
         lo = np.minimum(np.floor(pos).astype(int), n_modes - 2)
         frac = pos - lo
         interp = np.zeros((n_tot, n_modes))

@@ -15,3 +15,7 @@ phase_1/runs/
 
 # Direct-operator runs
 phase_1/direct/runs/
+
+# Build-up project data
+buildup/data/
+buildup/runs/
