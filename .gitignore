@@ -19,3 +19,9 @@ phase_1/direct/runs/
 # Build-up project data
 buildup/data/
 buildup/runs/
+
+# Build-up report build artifacts
+buildup/tex/*.aux
+buildup/tex/*.log
+buildup/tex/*.out
+buildup/tex/*.toc

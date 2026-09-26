@@ -70,23 +70,27 @@ def initial_guess(t_p, dt, dp):
     return c_d, float(dp[-1]), float(np.clip(k0, 0.05, 20.0))
 
 
-def invert(t_p, dt, dp_obs, p_wf, noise=0.01, verbose=0):
-    """Fit theta to the observed build-up; p_wf = pressure drop at shut-in (known from the gauge).
+def invert(t_p, dt, dp_obs, p_wf, noise=0.01, verbose=0, r_e_default=950.0):
+    """Fit theta to the observed build-up; p_wf = drawdown at shut-in p_i - p_wf (needs p_i), or None if p_i is
+    unknown (then the shut-in term is dropped from the misfit and r_eD starts from r_e_default).
 
-    Returns a dict with theta, its standard deviations, the fitted curve and diagnostics.
+    Returns a dict with theta, its covariance and standard deviations, the fitted curve and diagnostics.
     """
     c_d0, p_rise_end, k0 = initial_guess(t_p, dt, dp_obs)
-    p_bar = p_wf - p_rise_end                    # average pressure drop after stabilization
-    r_e0 = float(np.clip(np.sqrt(max(2 * (t_p / p_bar - c_d0) + 1, 1.0)), 150.0, 6000.0))
+    if p_wf is not None:
+        p_bar = p_wf - p_rise_end                # average pressure drop after stabilization
+        r_e0 = float(np.clip(np.sqrt(max(2 * (t_p / max(p_bar, 1e-12) - c_d0) + 1, 1.0)), 150.0, 6000.0))
+    else:
+        r_e0 = r_e_default
     theta0 = np.concatenate([np.full(N_CTRL, np.log(k0)), [np.log(c_d0), np.log(r_e0)]])
     d2 = np.diff(np.eye(N_CTRL), 2, axis=0)
 
     def residuals(theta):
         dp, p_wf_sim = forward(theta, t_p, dt)
         data_res = (np.log(np.maximum(dp, 1e-12)) - np.log(dp_obs)) / noise
-        wf_res = (np.log(p_wf_sim) - np.log(p_wf)) / noise
+        wf_res = [] if p_wf is None else [(np.log(p_wf_sim) - np.log(p_wf)) / noise]
         k = theta[:N_CTRL]
-        return np.concatenate([data_res, [wf_res], d2 @ k / SMOOTH, k / PRIOR_STD])
+        return np.concatenate([data_res, wf_res, d2 @ k / SMOOTH, k / PRIOR_STD])
 
     lo = np.concatenate([np.full(N_CTRL, -4.0), [np.log(1e-3), np.log(100.0)]])
     hi = np.concatenate([np.full(N_CTRL, 4.0), [np.log(1e4), np.log(1e4)]])
@@ -95,9 +99,10 @@ def invert(t_p, dt, dp_obs, p_wf, noise=0.01, verbose=0):
                         diff_step=1e-4, verbose=verbose, max_nfev=400)
     j = fit.jac
     cov = np.linalg.pinv(j.T @ j)
-    return {"theta": fit.x, "std": np.sqrt(np.clip(np.diag(cov), 0, None)), "theta0": theta0,
+    n_data = len(dt) + (p_wf is not None)
+    return {"theta": fit.x, "cov": cov, "std": np.sqrt(np.clip(np.diag(cov), 0, None)), "theta0": theta0,
             "dp_fit": forward(fit.x, t_p, dt)[0], "cost": fit.cost, "nfev": fit.nfev, "njev": fit.njev,
-            "status": fit.status, "seconds": time.time() - t0, "chi2_data": float(np.mean(fit.fun[:len(dt) + 1] ** 2))}
+            "status": fit.status, "seconds": time.time() - t0, "chi2_data": float(np.mean(fit.fun[:n_data] ** 2))}
 
 
 def main():

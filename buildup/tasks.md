@@ -3,6 +3,12 @@
 Synthetic pressure build-up tests for a vertical well in a radial reservoir with heterogeneous permeability.
 Purpose: the inverse problem a build-up test solves — from the well pressure after shut-in, recover the reservoir
 permeability, the skin, the wellbore storage and the distance to the (closed) outer boundary.
+**Status (2026-09-26): project stopped by decision of the owner.** The benchmark (Milestone 7) showed that
+model-based regression with the same forward model is more accurate than the neural inverse model on point estimates
+(C_D 7-8x, near-well rings, r_eD at low noise); the network's advantages are calibrated uncertainty, no failed fits
+and speed. Milestones 8-10 are not pursued. Everything up to the benchmark is committed; the report is
+`tex/buildup.pdf`.
+
 Self-contained: every Python file lives in `buildup/`; nothing is imported from `phase_1/` or elsewhere in the repo.
 Environment: `/home/daniel_88/py314` venv, CPU only.
 
@@ -226,6 +232,43 @@ k_eff and S stay in the dataset as generator-side summaries (any skin definition
          wins on stabilized, precise, p_i-known tests. Options: longer / wider training; hybrid output (classical
          material balance where p_i known and stabilized); flowing-pressure record before shut-in for p_i unknown.
 
+7. [ ] **Benchmark against model-based inversion** (`buildup/benchmark.py`): the same ~160 test build-ups
+       (realistic lengths, 25% without p_i) at 1% and 0.1% noise, inverted by the network (runs/noise) and by
+       `invert.py` (Gauss-Newton uncertainty; ring uncertainty by sampling its covariance). Compare per target:
+       accuracy, +/- 2 sigma coverage, failed / poor fits, run time. Decides the paper's main claim. Later add the
+       textbook regression baseline (homogeneous k + skin + storage + closed circle, 4 parameters) and a radial
+       composite (2-3 zones) regression, as a careful interpreter would use.
+       Result (2026-09-26, `runs/benchmark/benchmark.log`, 160 identical build-ups per noise level; network vs
+       inversion at 1% / 0.1% noise): ring ln k MAE 0.186 vs 0.178 / 0.114 vs 0.105 (innermost ring 0.116 vs 0.084 /
+       0.075 vs 0.033); ln C_D MAE 0.042 vs 0.006 / 0.024 vs 0.003; r_eD median p_i known 6.7 vs 6.5% / 1.6 vs 0.7%,
+       unknown 30 vs 30% / 23 vs 18%, 90th pct 55 vs 81% / 35 vs 37%; +/- 2 sigma coverage rings 89 vs 73% / 95 vs 65%,
+       C_D 91 vs 89% / 97 vs 65%, r_eD 94 vs 89% / 98 vs 88%; poor fits 0 vs 0% / 0 vs 11%; 0.3 ms vs 36 s / 0.2 ms vs
+       55 s per test. => the inversion is more accurate (C_D 7-8x, near-well rings, r_eD at low noise); the network
+       has calibrated uncertainty (Gauss-Newton intervals are overconfident), no failed fits, 1e5x speed. The
+       network is NOT more accurate than regression; the case for it is uncertainty, robustness, speed, and the
+       hybrid (Milestone 8). Fairness caveat: the inversion's smoothness prior is not the generator's prior.
+8. [ ] **Self-verifying hybrid**: network estimate -> forward re-simulation and misfit check (flags tests outside the
+       model family: faults, rate changes, gauge drift) -> a few `invert.py` iterations from the network estimate.
+       Out-of-distribution tests: other heterogeneity (sharp composites, trends), rate changes before shut-in,
+       gauge drift, errors in phi c_t / r_w.
+9. [ ] **Full posterior** (simulation-based inference, e.g. a conditional normalizing flow on the FNO encoder):
+       joint samples of ln k(r), C_D, r_eD (correlations such as r_eD vs far-field k without p_i); resolution of the
+       profile vs shut-in time.
+10. [ ] **When to stop the shut-in**: sequential posterior during the test and the expected uncertainty reduction
+       of continuing (continuations simulated from posterior samples with the fast forward model) -> recommended
+       stop time for a target accuracy; value in saved shut-in hours.
+    Framing (2026-09-26): "trustworthy, real-time Bayesian interpretation of build-up tests that tells you when to
+    stop"; the identifiability results (Milestones 5-6) stand on their own. Before claiming novelty: literature
+    review of ML / Bayesian pressure-transient analysis.
+
+## Report
+
+`buildup/tex/buildup.tex` (-> `buildup.pdf`, 13 pages; 2026-09-26): theory of build-up testing (diffusivity equation,
+storage, skin, flow regimes, superposition, Horner / Agarwal / Bourdet, material balance and the role of p_i,
+heterogeneity), then the experiments (simulator, dataset, label check, model-based inversion, neural inverse model,
+noise and tail analyses, discussion). Figures copied into `buildup/tex/` from `figs/` and the run folders; new
+figure scripts `fig_theory.py`, `fig_noise_summary.py`. Build: `cd buildup/tex && pdflatex buildup.tex` (twice).
+
 ## Layout
 
     buildup/
@@ -235,6 +278,7 @@ k_eff and S stay in the dataset as generator-side summaries (any skin definition
       tests/     (pytest; run: /home/daniel_88/py314/bin/python -m pytest -q buildup/tests)
       data/      (generated, git-ignored)
       figs/      (PDF figures)
+      tex/       (report: buildup.tex, buildup.pdf, figure PDFs)
 
 ## Open questions
 
